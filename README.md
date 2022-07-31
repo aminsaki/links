@@ -11,4 +11,8 @@ https://laravelpackage.com/#reasons-to-develop-a-package
 
 
 # row to database fake
-https://generatedata.com/generator
+https://generatedata.com/generator  
+
+
+#Aricles
+https://reinink.ca/articles
