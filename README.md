@@ -29,6 +29,11 @@ https://downloadly.ir/elearning/video-tutorials/nodejs-express-mongodb-bootcamp-
 
 1496B7C0-788D-4594-AC79-6B0CBE2F3E06  
 
-https://documenter.getpostman.com/view/5536918/TzRSh7rr
+https://documenter.getpostman.com/view/5536918/TzRSh7rr 
+
+
+
+install node 
+https://www.golinuxcloud.com/install-nodejs-ubuntu-from-tar-xz/
 
 
