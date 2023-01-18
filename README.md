@@ -37,3 +37,9 @@ install node
 https://www.golinuxcloud.com/install-nodejs-ubuntu-from-tar-xz/
 
 
+
+///genert key  ssh
+.ssh/id_ed25519.pub
+
+
+
