@@ -1,0 +1,50 @@
+        <?php 
+             
+
+             if (wc_customer_bought_product($current_user->user_email, $current_user->ID, $product->get_id())) {
+            
+               //You can make this code as function and call it where it is require
+            $current_user = wp_get_current_user();
+            if (0 == $current_user->ID) return;
+            // GET USER ORDERS (COMPLETED + PROCESSING)
+            $customer_orders = get_posts(array(
+                'numberposts' => -1,
+                'meta_key' => '_customer_user',
+                'meta_value' => $current_user->ID,
+                'post_type' => wc_get_order_types(),
+                'post_status' => array_keys(wc_get_is_paid_statuses()),
+            ));
+            // LOOP THROUGH ORDERS AND GET PRODUCT IDS
+            if (!$customer_orders) return;
+            $product_ids = array();
+            foreach ($customer_orders as $customer_order) {
+                $order = wc_get_order($customer_order->ID);
+
+                $items = $order->get_items();
+                foreach ($items as $item) {
+
+                    $product_id = $item->get_product_id();
+                    $product_ids[] = $product_id;
+                }
+            }
+         
+             $product_ids = array_unique($product_ids);
+        
+
+           if (in_array($product->get_id(), $product_ids)) {
+               
+                if ($product->get_price() > 0) {
+                    ?>
+                    <div class="meta-info-unit">
+                        <div class="icon"><i class="fal fa-file-certificate"></i></div>
+                        <div class="value"><a
+                                href='https://exam.holooacademy.com/<?= $product->get_id()?>/<?= $current_user->ID ?>'>
+                                شرکت در آزمون </a></div>
+                    </div>
+                    <?php
+                }
+            }
+
+        }  
+           
+         ?>
