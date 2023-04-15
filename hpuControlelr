@@ -1,0 +1,285 @@
+<?php
+
+require_once plugin_dir_path(__FILE__) . 'TNC_CRM_SOAP_Services.php';
+require_once plugin_dir_path(__FILE__) . 'jdatetime.class.php';
+require_once plugin_dir_path(__FILE__) . 'Util.php';
+
+class HPUController
+{
+    protected $crm;
+
+    public function __construct()
+    {
+        $this->crm = TNC_CRM_SOAP_Services::getInstance();
+    }
+
+    public function get_hpu_sale_dependent_func()
+    {
+        check_ajax_referer('get_hpu_sale_dependent_nonce');
+
+        $billCode = $_POST['billCode'];
+        $product_id = $_POST['product_id'];
+        $quantity_id = $_POST['quantity_id'];
+        $seller_id = $_POST['seller_id'];
+        $order_id = $_POST['order_id'];
+        $transaction_id = $_POST['transaction_id'];
+
+        /// get users
+        $user_id = get_post_meta($order_id, '_customer_user', true);
+        $customer = new WC_Customer($user_id);;
+
+        $party = [
+            'partyName' => $customer->billing['first_name'],
+            'partyFamily' =>  $customer->billing['last_name'],
+            'partyAddress' =>  $customer->billing['address_1'],
+            'partyTell' => $customer->billing['phone'],
+            'partyMobile' => $customer->billing['first_name'],
+            'partyJobId' => 0,
+            'partyNaTIONALcODE' => "0075238549",
+            'partyType' => 0,
+            'isRemote' => false,
+            'seprateId' => 22,
+            'partyStateCode' => 100,
+        ];
+
+        $invoice = [
+            'factor' => [
+                'sellerId' => $seller_id, 'productId' => $product_id, 'quantity' => $quantity_id
+            ]
+        ];
+        $result = $this->crm->setSaleDependent($billCode, $party, 1, $invoice, $transaction_id);
+
+        $response = [
+            'status' => true,
+            "billCode" => $_POST['billCode'],
+            'product_id' => $_POST['product_id'],
+            'quantity_id' => $_POST['quantity_id'],
+            'seller_id' => $_POST['seller_id'],
+            'order_id' => $_POST['order_id'],
+            'transaction_id' => $_POST['transaction_id'],
+            'party'=> $party,
+            'result' => $result
+        ];
+        wp_send_json($response);
+    }
+
+    public function get_hpu_serial_info_func()
+    {
+        check_ajax_referer('get_hpu_serial_info_nonce');
+
+        $serial = $_POST['serial'];
+
+        if (empty($serial)) {
+            $response = [
+                'status' => false,
+                'message' => '',
+                'error' => 'parameter serial is required',
+                'data' => []
+            ];
+            wp_send_json($response);
+        }
+
+        $serialInfo = $this->get_serial_info($serial);
+
+        if (!isset($serialInfo['serial'])) {
+            $response = [
+                'status' => false,
+                'message' => '',
+                'error' => 'invalid serial',
+                'data' => []
+            ];
+            wp_send_json($response);
+        }
+
+        $response = [
+            'status' => true,
+            'message' => '',
+            'error' => '',
+            'data' => $serialInfo
+        ];
+        wp_send_json($response);
+    }
+
+    public function get_hpu_payment_func()
+    {
+        check_ajax_referer('get_hpu_payment_nonce');
+
+        $serial = $_POST['serial'];
+        $productId = $_POST['product_id'];
+        $variationId = $_POST['variation_id'];
+        $renewRequired = $_POST['renew_required'] == 'true' ? true : false;
+
+        $targetProductId = $productId;
+        if (!empty($variationId)) {
+            $targetProductId = $variationId;
+        }
+        $targetProduct = wc_get_product($targetProductId);
+
+        $getPaymentInfo = $this->crm->getPayment($serial, $renewRequired, $targetProduct->get_sku());
+
+        if (!$getPaymentInfo['result'] || 0 == $getPaymentInfo['totalprice']) {
+            $response = [
+                'status' => false,
+                'message' => $getPaymentInfo['message'],
+                'error' => 'cant upgrade holoo product',
+                'data' => []
+            ];
+            wp_send_json($response);
+        }
+
+        foreach ($getPaymentInfo['article'] as $key => $article) {
+            $getPaymentInfo['article'][$key]['price'] = Util::rialToToman($article['price']);
+        }
+
+        $data = [
+            'hpu_product_id' => $productId,
+            'hpu_variation_id' => $variationId,
+            'hpu_renew_required' => $renewRequired,
+
+            'hpu_uuid' => $getPaymentInfo['uuid'],
+            'hpu_articles' => $getPaymentInfo['article'],
+            'hpu_message' => array_column($getPaymentInfo['article'], 'title'),
+            'hpu_maliyat' => Util::rialToToman($getPaymentInfo['maliyat']),
+            'hpu_shahrdary' => Util::rialToToman($getPaymentInfo['shahrdary']),
+            'hpu_total_price' => Util::rialToToman($getPaymentInfo['totalprice'])
+        ];
+
+        if (empty(session_id())) {
+            session_start();
+        }
+        $hpuSessionKey = 'hpu_' . $serial;
+        $_SESSION[$hpuSessionKey] = $data;
+
+        $response = [
+            'status' => true,
+            'message' => '',
+            'error' => '',
+            'data' => $data
+        ];
+        wp_send_json($response);
+    }
+
+    public function hpu_add_to_cart_func()
+    {
+        /// var_dump("true");
+        check_ajax_referer('hpu_add_to_cart_nonce');
+
+        $serial = $_POST['serial'];
+
+        if (empty(session_id())) {
+            session_start();
+        }
+
+        $hpuSessionKey = 'hpu_' . $serial;
+        if (!isset($_SESSION[$hpuSessionKey])) {
+            $response = [
+                'status' => false,
+                'message' => '',
+                'error' => 'session is empty',
+                'data' => ''
+            ];
+            wp_send_json($response);
+        }
+        $productId = $_SESSION[$hpuSessionKey]['hpu_product_id'];
+        $variationId = $_SESSION[$hpuSessionKey]['hpu_variation_id'];
+        $hpuMessage = $_SESSION[$hpuSessionKey]['hpu_message'];
+        $hpuRenewRequired = $_SESSION[$hpuSessionKey]['hpu_renew_required'];
+        $price = $_SESSION[$hpuSessionKey]['hpu_total_price'];
+        $uuid = $_SESSION[$hpuSessionKey]['hpu_uuid'];
+
+        $product = wc_get_product($productId);
+        if (!empty($variationId)) {
+            $variation = wc_get_product($variationId);
+        }
+
+        $hpuProductId = wc_get_product_id_by_sku('holoo_products_upgrade');
+
+        global $woocommerce;
+        try {
+            $woocommerce->cart->add_to_cart($hpuProductId, 1, '', '', [
+                'hpu_serial' => $serial,
+                'hpu_target_product_id' => $productId,
+                'hpu_target_product_sku' => $product->get_sku(),
+                'hpu_target_product_title' => $product->get_name(),
+                'hpu_target_product_variation_id' => $variationId,
+                'hpu_target_product_variation_sku' => empty($variationId) ? $product->get_sku() : $variation->get_sku(),
+                'hpu_target_product_variation_title' => empty($variationId) ? $product->get_name() : $variation->get_name(),
+                'hpu_message' => implode(',', $hpuMessage),
+                'hpu_price' => $price,
+                'hpu_uuid' => $uuid,
+            ]);
+            $woocommerce->cart->calculate_totals();
+            $woocommerce->cart->set_session();
+            $woocommerce->cart->maybe_set_cart_cookies();
+
+            $response = [
+                'status' => true,
+                'message' => '',
+                'error' => '',
+                'data' => ''
+            ];
+            wp_send_json($response);
+        } catch (Exception $e) {
+            $response = [
+                'status' => false,
+                'message' => '',
+                'error' => $e->getMessage(),
+                'data' => ''
+            ];
+            wp_send_json($response);
+        }
+    }
+
+    public function get_serial_info($serial)
+    {
+        $serialInfo = $this->crm->getSerialData($serial);
+
+        if (!isset($serialInfo['serial'])) {
+            return [];
+        }
+
+        $partyFamily = $serialInfo['partyFamily'];
+        $maskedPartyFamily = str_repeat('*', strlen($partyFamily));
+        $maskedPartyFullname = $serialInfo['partyName'] . ' ' . $maskedPartyFamily;
+
+        $partyTell = $serialInfo['partyTell'];
+        $a = '*******';
+        $b = substr($partyTell, -4);
+        $maskedPartyTell = $a . $b;
+
+        $partyMobile = $serialInfo['partyMobile'];
+        $a = substr($partyMobile, 0, 3);
+        $b = '***';
+        $c = substr($partyMobile, -4);
+        $maskedPartyMobile = $a . $b . $c;
+
+        $partyAddress = $serialInfo['partyAddress'];
+        $first = str_repeat('*', 30);
+        $last = substr($partyAddress, 30, -1);
+        $maskedPartyAddress = $first . $last;
+
+        $guarantyDate = $serialInfo['guarantyDate'];
+        $currentData = date('Y-m-d');
+        $renewRequired = $currentData > $guarantyDate;
+
+        $jDateTime = new jDateTime(true, true, 'Asia/Tehran');
+        $guarantyDateJalali = $jDateTime->date('Y-m-d', strtotime($guarantyDate));
+
+        $data = [
+            'serial' => $serialInfo['serial'],
+            'agency_code' => $serialInfo['agencyCode'],
+            'agency_title' => $serialInfo['agencyTitle'],
+            'software_code' => $serialInfo['softwareCode'],
+            'software_title' => $serialInfo['softwareTitle'],
+//        'guaranty_date'  => $serialInfo['guarantyDate'],
+            'guaranty_date' => $guarantyDateJalali,
+            'party_fullname' => $maskedPartyFullname,
+            'party_address' => $maskedPartyAddress,
+            'party_tell' => $maskedPartyTell,
+            'party_mobile' => $maskedPartyMobile,
+            'renew_required' => $renewRequired
+        ];
+
+        return $data;
+    }
+}
