@@ -1,0 +1,27 @@
+jQuery(document).ready(function () {
+    console.log("sf");
+    let orderId = window.location.pathname.substr(25, 100);
+    jQuery.ajax({
+        url: '/wp-admin/admin-ajax.php',
+        type: 'POST',
+        data: {
+            action: hpu_js_obj.get_hpu_set_sale_dependent_action,
+            _ajax_nonce: hpu_js_obj.get_hpu_sale_dependent_nonce,
+            billCode: orderId.slice(0, -1),
+            product_id: jQuery(".woocommerce-order-details #myproduct_id").val(),
+            quantity_id: jQuery(".woocommerce-order-details #myquantity_id").val(),
+            seller_id: jQuery(".woocommerce-order-details #myseller_id").val(),
+            order_id: jQuery(".woocommerce-order-details #myorder_id").val() ,
+            transaction_id: jQuery(".woocommerce-order-details #mytransaction_id").val()
+        },
+        success: function (result) {
+            console.log("ff", result);
+        },
+        error: function (err) {
+            console.log("false get_hpu_payment_action Amin");
+        }
+    });
+
+});
+
+///https://holoostore.com/checkout/order-received/47397/?key=wc_order_6KoCS7RVROzXn&utm_nooverride=1&wc_status=success
