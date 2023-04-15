@@ -1,0 +1,119 @@
+<?php
+
+class TNC_CRM_SOAP_Services
+{
+    protected $crmServiceWSDL = "http://94.182.156.11:8080/WebSite/WebSite?wsdl";
+    protected $terminalId = 23067;
+    protected $referenceId;
+    protected $soapClient;
+
+    private static $instance = null;
+
+    public function __construct()
+    {
+        $this->soapClient = new SoapClient($this->crmServiceWSDL);
+        $this->referenceId = $this->getReferenceId($this->terminalId);
+    }
+
+    public static function getInstance()
+    {
+        if (is_null(self::$instance)) {
+            self::$instance = new TNC_CRM_SOAP_Services();
+        }
+        return self::$instance;
+    }
+
+
+    protected function getReferenceId($terminalId)
+    {
+        return md5("!TNC@23067#" . $this->soapClient->GetReferenceId($terminalId) . "$");
+    }
+
+    public function setSalePayment($softCode, $newKits, $billCode, $siteId, $party)
+    {
+        $data = [
+            'ReferenceId' => $this->referenceId,
+            'softcode' => $softCode,
+            'newKits' => $newKits,
+            'billCode' => $billCode,
+            'siteId' => $siteId,
+            'party' => json_encode($party, JSON_UNESCAPED_UNICODE)
+        ];
+
+        $result = $this->soapClient->__soapCall('setSalePayment', $data);
+        return json_decode($result, true);
+    }
+
+    public function getSerialData($serial)
+    {
+        $data = [
+            'ReferenceId' => $this->referenceId,
+            'serial' => $serial,
+        ];
+        $result = $this->soapClient->__soapCall('getSerialData', $data);
+        return json_decode($result, true);
+    }
+
+    public function getPayment($serial, $renew = false, $newCode = '')
+    {
+        $data = [
+            'ReferenceId' => $this->referenceId,
+            'Serial' => $serial,
+            'CompanyId' => 1,
+            'IsTamdid' => $renew ? 1 : 0,
+            'IsNewVer' => false,
+            'NewKits' => '',
+            'IsNeedCD' => 0,
+            'newCode' => json_encode(['isLogin' => false, 'newCode' => $newCode, 'validCode' => M08692])
+        ];
+
+        $result = $this->soapClient->__soapCall('getPayment', $data);
+        return json_decode($result, true);
+    }
+
+    public function setPayment($uuid, $billCode)
+    {
+        $data = [
+            'ReferenceId' => $this->referenceId,
+            'uuid' => $uuid,
+            'billCode' => $billCode,
+        ];
+
+        $result = $this->soapClient->__soapCall('setPayment', $data);
+        return json_decode($result, true);
+    }
+
+    public function setSaleDependent($billCode, $party, $siteId , $invoice ,  $transaction_id)
+    {
+        $data = [
+            'ReferenceId' => $this->referenceId,
+            'billCode' => $transaction_id,
+            'siteId' => $billCode,
+            'party' => json_encode($party, JSON_UNESCAPED_UNICODE),
+            'Invoice' => json_encode($invoice, JSON_UNESCAPED_UNICODE)
+
+        ];
+
+
+       $result = $this->soapClient->__soapCall('setSaleDependent', $data);
+
+        return json_decode($result, true);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
