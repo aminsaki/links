@@ -44,5 +44,7 @@ https://www.golinuxcloud.com/install-nodejs-ubuntu-from-tar-xz/
 //# git 
 composer require maatwebsite/excel --ignore-platform-reqs
 
+composer require laravel/passport --with-all-dependencies
+
 
 
