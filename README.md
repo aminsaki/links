@@ -47,4 +47,8 @@ composer require maatwebsite/excel --ignore-platform-reqs
 composer require laravel/passport --with-all-dependencies
 
 
+#flex 
+https://codepen.io/peiqun/details/WYzzYX
+
+
 
