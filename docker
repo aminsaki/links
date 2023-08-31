@@ -1,0 +1,3 @@
+
+check network
+docker network inspect test_app-network
