@@ -51,4 +51,7 @@ composer require laravel/passport --with-all-dependencies
 https://codepen.io/peiqun/details/WYzzYX
 
 
+#compsoer 
+composer install --ignore-platform-reqs
+
 
